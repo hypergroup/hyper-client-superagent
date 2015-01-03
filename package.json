@@ -1,0 +1,33 @@
+{
+  "name": "hyper-client-superagent",
+  "version": "0.1.0",
+  "description": "superagent client implementation for hyper-path",
+  "main": "index.js",
+  "scripts": {
+    "test": "NODE_ENV=test ./node_modules/.bin/mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hypergroup/hyper-client-superagent.git"
+  },
+  "keywords": [
+    "hyper",
+    "json"
+  ],
+  "author": "Cameron Bytheway <bytheway.cameron@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hypergroup/hyper-client-superagent/issues"
+  },
+  "homepage": "https://github.com/hypergroup/hyper-client-superagent",
+  "devDependencies": {
+    "mocha": "^2.1.0",
+    "should": "^4.4.2"
+  },
+  "dependencies": {
+    "hyper-json-immutable-parse": "^0.1.0",
+    "lru-cache": "^2.5.0",
+    "superagent": "git://github.com/visionmedia/superagent#b268f9e85676319b970de8eca5a955a1d60bfa51",
+    "superagent-defaults": "^0.1.8"
+  }
+}
