@@ -146,11 +146,15 @@ function parseHyperJson(res, fn) {
 }
 
 function parseJSON(body, href, fn) {
+  var parsed;
   try {
-    fn(null, JSON.parse(body, immutableParse(href)));
+    parsed = JSON.parse(body, immutableParse(href));
   } catch (err) {
-    fn(err);
+    if (fn) return fn(err);
+    throw err;
   }
+  if (fn) return fn(null, parsed);
+  return parsed;
 }
 
 if (process.env.CHAOS) {
