@@ -133,28 +133,26 @@ function get(href, cb) {
 
 function parseHyperJson(res, fn) {
   // browser
-  if (typeof res === 'string') return parseJSON(res, '', fn);
+  if (typeof res === 'string') return parseJSON(res, '');
 
   // node
   res.text = '';
   res.setEncoding('utf8');
-  res.on('data', function(chunk){ res.text += chunk;});
+  res.on('data', function(chunk){ res.text += chunk; });
   res.on('end', function(){
     var href = res.headers['content-location'] || res.headers['location'] || res.req.url;
-    parseJSON(res.text.replace(/^\s*|\s*$/g, ''), href, fn);
+    var out;
+    try {
+      out = parseJSON(res.text.replace(/^\s*|\s*$/g, ''), href);
+    } catch (err) {
+      return fn(err);
+    }
+    fn(null, out);
   });
 }
 
-function parseJSON(body, href, fn) {
-  var parsed;
-  try {
-    parsed = JSON.parse(body, immutableParse(href));
-  } catch (err) {
-    if (fn) return fn(err);
-    throw err;
-  }
-  if (fn) return fn(null, parsed);
-  return parsed;
+function parseJSON(body, href) {
+  return JSON.parse(body, immutableParse(href));
 }
 
 if (process.env.CHAOS) {
