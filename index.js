@@ -32,6 +32,8 @@ function Client(API_URL, opts) {
   // TODO only set the parser for the context
   var parsers = context.request.parse;
   parsers['application/json'] = parsers['application/hyper+json'] = parseHyperJson;
+
+  patchCrappySuperagent(context.request.Response, context.request.parse);
 }
 
 Client.prototype.auth = function(user, pass) {
@@ -133,7 +135,7 @@ function get(href, cb) {
 
 function parseHyperJson(res, fn) {
   // browser
-  if (typeof res === 'string') return parseJSON(res, '');
+  if (typeof res === 'string') return parseJSON(res, this.xhr.responseURL);
 
   // node
   res.text = '';
@@ -188,3 +190,13 @@ function HyperError(res) {
   if (res.body && res.body.error) this.message = res.body.error.message;
   else this.message = res.text;
 };
+
+function patchCrappySuperagent(Response, parsers) {
+  if (!Response || !Response.prototype.parseBody) return;
+  Response.prototype.parseBody = function(str) {
+    var parse = parsers[this.type];
+    return parse && str && str.length ?
+      parse.call(this, str) :
+      null;
+  };
+}
