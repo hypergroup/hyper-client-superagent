@@ -135,7 +135,7 @@ function get(href, cb) {
 
 function parseHyperJson(res, fn) {
   // browser
-  if (typeof res === 'string') return parseJSON(res, this.xhr.responseURL);
+  if (typeof res === 'string') return parseJSON(res, this.xhr.responseURL || this.headers['content-location'] || this.headers.location || this.req.url);
 
   // node
   res.text = '';
