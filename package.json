@@ -1,6 +1,6 @@
 {
   "name": "hyper-client-superagent",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "superagent client implementation for hyper-path",
   "main": "index.js",
   "scripts": {
