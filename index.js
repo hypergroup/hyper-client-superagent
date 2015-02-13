@@ -95,7 +95,7 @@ Client.prototype.subscribe = function(href, cb) {
   };
   self.on(href, sub);
   return function() {
-    self.removeListener(sub);
+    self.removeListener(href, sub);
   };
 };
 
