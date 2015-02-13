@@ -5,6 +5,8 @@
 var superagent = require('superagent-defaults');
 var LRU = require('lru-cache');
 var immutableParse = require('hyper-json-immutable-parse');
+var inherits = require('util').inherits;
+var Emitter = require('events').EventEmitter;
 
 /**
  * Expose the Client constructor
@@ -19,8 +21,9 @@ module.exports = Client;
 function Client(API_URL, opts) {
   if (!(this instanceof Client)) return new Client(API_URL, opts);
 
+  Emitter.call(this);
   var self = this;
-  opts = opts || {}
+  opts = opts || {};
   self.cache = new LRU(opts.maxSize || 500);
   self.pending = {};
 
@@ -35,6 +38,7 @@ function Client(API_URL, opts) {
 
   patchCrappySuperagent(context.request.Response, context.request.parse);
 }
+inherits(Client, Emitter);
 
 Client.prototype.auth = function(user, pass) {
   this.context.auth(user, pass);
@@ -53,7 +57,8 @@ Client.prototype.header = function(key, value) {
 
 Client.prototype.submit = function(method, action, body, fn) {
   var self = this;
-  var req = self._init(method.toLowerCase(), action);
+  method = method.toLowerCase();
+  var req = self._init(method, action);
 
   if (body) {
     method === 'get' ?
@@ -64,13 +69,48 @@ Client.prototype.submit = function(method, action, body, fn) {
   req.end(function(err, res) {
     if (err) return fn(err);
     if (!res.ok) return fn(new HyperError(res));
-    var href = res.get('content-location') || res.get('location');
-
-    // TODO if we're in the browser send off a request to clear the browser cache
-    if (href) self.cache.set(href, {b: res.body, l: res.links});
-
+    var location = res.get('location');
+    var contentLocation = res.get('content-location');
+    var href = contentLocation || location;
+    var body = res.body;
+    if (method !== 'get') {
+      if (body && body.href) self.refresh(body.href, body, body.links);
+      if (contentLocation) self.refresh(contentLocation, res.body, body.links);
+      if (location) self.refresh(location);
+      // TODO http://tools.ietf.org/html/draft-nottingham-linked-cache-inv-03#section-3
+    }
     fn(null, res.body, res.links, href, false);
   });
+};
+
+Client.prototype.refresh = function(href, body, links) {
+  if (body) this._save(href, body, links);
+  this._bustCache(href);
+};
+
+Client.prototype.subscribe = function(href, cb) {
+  var self = this;
+  var sub = function() {
+    cb.apply(self, arguments);
+  };
+  self.on(href, sub);
+  return function() {
+    self.removeEventListener(sub);
+  };
+};
+
+Client.prototype._save = function(href, body, links) {
+  this.cache.set(href, {b: body, l: links});
+  this.emit(href, null, body, links, null, false);
+};
+
+Client.prototype._bustCache = function(href) {
+  var req = self._fetch(href);
+  req.set({
+    'cache-control': 'max-age=0, no-store, no-cache',
+    pragma: 'no-cache'
+  });
+  req.end();
 };
 
 Client.prototype._init = function(method, href) {
@@ -92,21 +132,23 @@ Client.prototype._fetch = function(href, cb) {
 
     if (err) return;
 
-    self.cache.set(href, {b: body, l: links});
+    self._save(href, body, links);
 
     setTimeout(function() {
       req.removeAllListeners();
     }, 0);
-  });
+  }, false);
 
-  self._wait(href, cb);
+  if (!cb) return req;
+
+  var sub = self._wait(href, cb);
 
   req.end();
 
-  return req;
+  return sub;
 };
 
-Client.prototype._wait = function(href, cb) {
+Client.prototype._wait = function(href, cb, shouldSubscribe) {
   var self = this;
 
   var req = self.pending[href];
@@ -114,11 +156,12 @@ Client.prototype._wait = function(href, cb) {
 
   req.on('error', cb);
 
+  if (shouldSubscribe !== false) return self.subscribe(href, cb);
+
   req.on('response', function(res) {
     if (res.error) return cb(res.error);
-    cb(null, res.body, res.links, null, false);
+    return cb(null, res.body, res.links, null, false);
   });
-
   return req;
 };
 
@@ -128,9 +171,7 @@ function get(href, cb) {
   var res = cache.get(href);
   if (res) return cb(null, res.b, res.l, null, false);
 
-  if (self._wait(href, cb)) return;
-
-  self._fetch(href, cb);
+  return self._wait(href, cb) || self._fetch(href, cb);
 }
 
 function parseHyperJson(res, fn) {
@@ -149,7 +190,7 @@ function parseHyperJson(res, fn) {
     } catch (err) {
       return fn(err);
     }
-    fn(null, out);
+    return fn(null, out);
   });
 }
 
@@ -158,7 +199,6 @@ function parseJSON(body, href) {
 }
 
 if (process.env.CHAOS) {
-  var Emitter = require('events').EventEmitter;
 
   function chaos(path) {
     var req = new Emitter();
@@ -171,7 +211,7 @@ if (process.env.CHAOS) {
         req.emit('error', new Error('Connection timeout'));
       }, 5000);
     }
-    req.end = function() {}
+    req.end = function() {};
     return req;
   }
 }
@@ -189,7 +229,7 @@ function HyperError(res) {
   this.status = res.status;
   if (res.body && res.body.error) this.message = res.body.error.message;
   else this.message = res.text;
-};
+}
 
 function patchCrappySuperagent(Response, parsers) {
   if (!Response || !Response.prototype.parseBody) return;
