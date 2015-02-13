@@ -105,7 +105,7 @@ Client.prototype._save = function(href, body, links) {
 };
 
 Client.prototype._bustCache = function(href) {
-  var req = self._fetch(href);
+  var req = this._fetch(href);
   req.set({
     'cache-control': 'max-age=0, no-store, no-cache',
     pragma: 'no-cache'
