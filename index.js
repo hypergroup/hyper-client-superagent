@@ -75,8 +75,8 @@ Client.prototype.submit = function(method, action, body, fn) {
     var body = res.body;
     if (method !== 'get') {
       if (body && body.href) self.refresh(body.href, body, body.links);
-      if (contentLocation) self.refresh(contentLocation, res.body, body.links);
-      if (location) self.refresh(location);
+      if (contentLocation && contentLocation !== body.href) self.refresh(contentLocation, res.body, body.links);
+      if (location && location !== contentLocation && location !== body.href) self.refresh(location);
       // TODO http://tools.ietf.org/html/draft-nottingham-linked-cache-inv-03#section-3
     }
     fn(null, res.body, res.links, href, false);
@@ -100,8 +100,9 @@ Client.prototype.subscribe = function(href, cb) {
 };
 
 Client.prototype._save = function(href, body, links) {
-  this.cache.set(href, {b: body, l: links});
-  this.emit(href, null, body, links, null, false);
+  var self = this;
+  self.cache.set(href, {b: body, l: links});
+  self.emit(href, null, body, links, null, false);
 };
 
 Client.prototype._bustCache = function(href) {
@@ -114,7 +115,7 @@ Client.prototype._bustCache = function(href) {
 };
 
 Client.prototype._init = function(method, href) {
-  if (process.env.CHAOS) {
+  if (!!process.env.CHAOS) {
     var weight = parseFloat(process.env.CHAOS);
     if (isNaN(weight)) weight = 0.1;
     if (Math.random() < weight) return chaos(href);
@@ -169,7 +170,10 @@ function get(href, cb) {
   var self = this;
   var cache = self.cache;
   var res = cache.get(href);
-  if (res) return cb(null, res.b, res.l, null, false);
+  if (res) {
+    cb(null, res.b, res.l, null, false);
+    return self.subscribe(href, cb);
+  }
 
   return self._wait(href, cb) || self._fetch(href, cb);
 }
@@ -183,7 +187,7 @@ function parseHyperJson(res, fn) {
   res.setEncoding('utf8');
   res.on('data', function(chunk){ res.text += chunk; });
   res.on('end', function(){
-    var href = res.headers['content-location'] || res.headers['location'] || res.req.url;
+    var href = res.headers['content-location'] || res.headers.location || res.req.url;
     var out;
     try {
       out = parseJSON(res.text.replace(/^\s*|\s*$/g, ''), href);
@@ -198,7 +202,7 @@ function parseJSON(body, href) {
   return JSON.parse(body, immutableParse(href));
 }
 
-if (process.env.CHAOS) {
+if (!!process.env.CHAOS) {
 
   function chaos(path) {
     var req = new Emitter();
