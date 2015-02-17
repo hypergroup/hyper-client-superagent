@@ -91,7 +91,7 @@ Client.prototype._scheduleUpdates = function(action, res, location, contentLocat
 
   // add support for http://tools.ietf.org/html/draft-nottingham-linked-cache-inv-03#section-3
   var invalidates = typeof links.invalidates === 'string' ? [links.invalidates] : links.invalidates;
-  for (var i = 0; i < invalidates.length; i++) {
+  for (var i = 0; i < (invalidates || []).length; i++) {
     updates[invalidates[i]] = [invalidates[i]];
   }
 
