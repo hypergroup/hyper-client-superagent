@@ -3,6 +3,7 @@
  */
 
 var superagent = require('superagent-defaults');
+var parseLinks = require('links-parser');
 var LRU = require('lru-cache');
 var immutableParse = require('hyper-json-immutable-parse');
 var inherits = require('util').inherits;
@@ -66,21 +67,37 @@ Client.prototype.submit = function(method, action, body, fn) {
       req.send(body);
   }
 
-  req.end(function(err, res) {
+  return req.end(function(err, res) {
     if (err) return fn(err);
     if (!res.ok) return fn(new HyperError(res));
     var location = res.get('location');
     var contentLocation = res.get('content-location');
     var href = contentLocation || location;
     var body = res.body;
-    if (method !== 'get') {
-      if (body && body.href) self.refresh(body.href, body, body.links);
-      if (contentLocation && contentLocation !== body.href) self.refresh(contentLocation, res.body, body.links);
-      if (location && location !== contentLocation && location !== body.href) self.refresh(location);
-      // TODO http://tools.ietf.org/html/draft-nottingham-linked-cache-inv-03#section-3
-    }
     fn(null, res.body, res.links, href, false);
+    if (method !== 'get') self._scheduleUpdates(action, res, location, contentLocation);
   });
+};
+
+Client.prototype._scheduleUpdates = function(action, res, location, contentLocation) {
+  var body = res.body;
+  var updates = {};
+  var links = parseLinks(res.headers.link || '') || {};
+
+  if (action) updates[action] = [action];
+  if (body) updates[body.href] = [body.href, body, links];
+  if (contentLocation) updates[contentLocation] = [contentLocation, body, links];
+  if (location) updates[location] = updates[location] || [location];
+
+  // add support for http://tools.ietf.org/html/draft-nottingham-linked-cache-inv-03#section-3
+  var invalidates = typeof links.invalidates === 'string' ? [links.invalidates] : links.invalidates;
+  for (var i = 0; i < invalidates.length; i++) {
+    updates[invalidates[i]] = [invalidates[i]];
+  }
+
+  for (var href in updates) {
+    this.refresh.apply(this, updates[href]);
+  }
 };
 
 Client.prototype.refresh = function(href, body, links) {
@@ -172,7 +189,7 @@ function get(href, cb) {
   var res = cache.get(href);
   if (res) {
     cb(null, res.b, res.l, null, false);
-    return self.subscribe(href, cb);
+    return cb(null, res.b, res.l, null, false);
   }
 
   return self._wait(href, cb) || self._fetch(href, cb);
