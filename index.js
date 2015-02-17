@@ -189,7 +189,7 @@ function get(href, cb) {
   var res = cache.get(href);
   if (res) {
     cb(null, res.b, res.l, null, false);
-    return cb(null, res.b, res.l, null, false);
+    return self.subscribe(href, cb);
   }
 
   return self._wait(href, cb) || self._fetch(href, cb);
