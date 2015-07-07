@@ -148,7 +148,7 @@ Client.prototype._fetch = function(href, cb) {
   self._wait(href, function(err, body, links) {
     delete pending[href];
 
-    if (err) return;
+    if (err) return self.emit(href, err);
 
     self._save(href, body, links);
 
