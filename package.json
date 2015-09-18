@@ -28,6 +28,7 @@
     "hyper-json-immutable-parse": "^0.1.0",
     "links-parser": "^0.1.0",
     "lru-cache": "^2.5.0",
+    "qs": "^5.1.0",
     "superagent": "https://github.com/visionmedia/superagent/archive/7395c9c014d6fffdea6f7d6df9841460175abc24.tar.gz",
     "superagent-defaults": "^0.1.8"
   }
