@@ -8,6 +8,7 @@ var LRU = require('lru-cache');
 var immutableParse = require('hyper-json-immutable-parse');
 var inherits = require('util').inherits;
 var Emitter = require('events').EventEmitter;
+var qs = require('qs').stringify;
 
 /**
  * Expose the Client constructor
@@ -53,6 +54,16 @@ Client.prototype.use = function(fn) {
 
 Client.prototype.header = function(key, value) {
   this.context.set(key, value);
+  return this;
+};
+
+Client.prototype.format = function(method, action, values, cb) {
+  if (method === 'GET') {
+    action = action.split('?')[0];
+    cb(null, action + '?' + qs(values));
+  } else {
+    cb(null, action, values);
+  }
   return this;
 };
 
