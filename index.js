@@ -111,6 +111,11 @@ Client.prototype._scheduleUpdates = function(action, res, location, contentLocat
   }
 };
 
+Client.prototype.clear = function(href, cb) {
+  this.cache.del(href);
+  cb();
+};
+
 Client.prototype.refresh = function(href, body, links) {
   if (body) this._save(href, body, links);
   this._bustCache(href);
