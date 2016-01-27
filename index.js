@@ -20,8 +20,13 @@ module.exports = Client;
  * Create a client
  */
 
-function Client(API_URL, opts) {
-  if (!(this instanceof Client)) return new Client(API_URL, opts);
+function Client(API_URL, token, opts) {
+  if (!(this instanceof Client)) return new Client(API_URL, token, opts);
+
+  if (typeof token == 'object') {
+    opts = token;
+    token = null;
+  }
 
   Emitter.call(this);
   var self = this;
@@ -33,6 +38,8 @@ function Client(API_URL, opts) {
   self.get = get.bind(self);
 
   var context = self.context = superagent();
+
+  if (token) self.header('authorization', 'Bearer ' + token);
 
   // TODO only set the parser for the context
   var parsers = context.request.parse;
