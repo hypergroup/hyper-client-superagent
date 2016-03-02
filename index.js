@@ -14,7 +14,8 @@ var qs = require('qs').stringify;
  * Expose the Client constructor
  */
 
-module.exports = Client;
+exports = module.exports = Client;
+exports['default'] = exports;
 
 /**
  * Create a client
